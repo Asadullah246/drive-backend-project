@@ -62,11 +62,41 @@ async function run() {
       res.send(blogs);
       // console.log(blogs);
     });
+    app.get("/member/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email:email };
+      const newBlog = await memberCollection.findOne(query);
+      res.send(newBlog);
+    });
+
+
+
     app.post("/member", async (req, res) => {
       const body = req.body;
       // console.log("b", body);
       const newBlog = await memberCollection.insertOne(body);
       res.send(newBlog);
+    });
+
+    app.delete("/member/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await memberCollection.deleteOne(query); 
+      res.send(result);
+    });
+
+    app.patch("/member/:id", async (req, res) => {
+      const body = req.body;
+      // console.log("body", body);
+      const id = req.params.id;
+      console.log("id", id);
+      const query = { _id: new ObjectId(id) };
+      const updatedData = {
+        $set: body,
+      };
+      const newBlog = await memberCollection.updateOne(query, updatedData);
+      res.send(newBlog);
+      // console.log(newBlog);
     });
 
     // end member
@@ -107,6 +137,34 @@ async function run() {
       const result = await filesCollection.findOne(query);
       res.send(result);
       // console.log(blogs);
+    });
+
+    app.put("/files/rating/:id", async (req, res) => {
+      const body = req.body;
+      const id = req.params.id;
+      console.log("b", body);
+      const query = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+
+      const getMem = await filesCollection.findOne(query);
+      console.log("getmem", getMem);
+
+      if (!Array.isArray(getMem.reviews)) {
+        getMem.reviews = []; // Initialize reviews as an empty array if it's not already an array
+      }
+
+      const updatedData = {
+        $set: {
+          reviews: [...getMem?.reviews, body],
+        },
+      };
+
+      const newBlog = await filesCollection.updateOne(
+        query,
+        updatedData,
+        options
+      );
+      res.send(newBlog);
     });
 
     app.patch("/files/:id", async (req, res) => {
