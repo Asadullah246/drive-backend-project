@@ -4,26 +4,27 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
 const multer = require("multer");
 const app = express();
-const path = require('path')
+const path = require("path");
 
 const port = process.env.PORT || 5000;
 
 //middleware
 app.use(cors());
 app.use(express.json());
+app.use("/uploads", express.static("uploads"));
 
 const storage = multer.diskStorage({
-  destination: 'uploads/',
+  destination: "uploads/",
   filename: function (req, file, cb) {
     // Generate a unique name for the file
-    const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const uniqueName = Date.now() + "-" + Math.round(Math.random() * 1e9);
 
     // Get the file extension
     const ext = path.extname(file.originalname);
 
     // Create the final filename with the extension
     const filename = uniqueName + ext;
-    const relativePath = 'uploads/' + filename;
+    const relativePath = "uploads/" + filename;
 
     console.log("relativ", relativePath);
 
@@ -52,61 +53,132 @@ async function run() {
     // await client.connect();
     const db = client.db("drive-storage");
     const filesCollection = db.collection("files");
-    //   const catCollection = db.collection("category");
+    const memberCollection = db.collection("member");
+
+    // member
+
+    app.get("/member", async (req, res) => {
+      const blogs = await memberCollection.find({}).toArray();
+      res.send(blogs);
+      // console.log(blogs);
+    });
+    app.post("/member", async (req, res) => {
+      const body = req.body;
+      // console.log("b", body);
+      const newBlog = await memberCollection.insertOne(body);
+      res.send(newBlog);
+    });
+
+    // end member
+
+
+
+    // app.get('/uploads/:filename', (req, res) => {
+    //   const filePath = `/uploads/${req.params.filename}`;
+
+    //   res.setHeader('Content-Disposition', `attachment; filename=${req.params.filename}`);
+    //   res.sendFile(filePath);
+    // });
+
+    app.get('/uploads/:filename', (req, res) => {
+      const filename = req.params.filename;
+      const filePath = path.join(__dirname, 'uploads/', filename);
+
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.sendFile(filePath);
+    });
 
     app.get("/files", async (req, res) => {
       const blogs = await filesCollection.find({}).toArray();
       res.send(blogs);
       // console.log(blogs);
     });
+    app.get("/files/:email", async (req, res) => {
+      const email=req.params.email;
+      const query = { uploader_email: email }
+
+      const blogs = await filesCollection.find(query).toArray();
+      res.send(blogs); 
+      // console.log(blogs);
+    });
+
+    app.patch("/files/:id", async (req, res) => {
+      const body = req.body;
+      // console.log("body", body);
+      const id = req.params.id;
+      console.log("id", id);
+      const query = { _id: new ObjectId(id) };
+      const updatedData = {
+        $set: body,
+      };
+      const newBlog = await filesCollection.updateOne(query, updatedData);
+      res.send(newBlog);
+      // console.log(newBlog);
+    });
+
+    app.delete("/files/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await filesCollection.deleteOne(query);
+      res.send(result);
+    });
+
 
     // upload.array("files", 5)
 
-    app.post("/files", upload.fields([
-      { name: 'thumb', maxCount: 1 },
-      { name: 'files', maxCount: 5 },
-    ]) , async (req, res) => {
-      const files = req.files; 
-      const {
-        l_subject,
-        desc,
-        uploader_name,
-        price,
-        sub_sub_category,
-        sub_category,
-        category,
-        doc_name,
-      } = req.body;
+    app.post(
+      "/files",
+      upload.fields([
+        { name: "thumb", maxCount: 1 },
+        { name: "files", maxCount: 5 },
+      ]),
+      async (req, res) => {
+        // const files = req.files;
+        const {
+          l_subject,
+          desc,
+          uploader_name,
+          uploader_email,
+          price,
+          sub_sub_category,
+          sub_category,
+          category,
+          doc_name,
+          status
+        } = req.body;
 
-      if (!files) {
-        return res.status(400).json({ message: "Missing required files" });
+        // if (!files) {
+        //   return res.status(400).json({ message: "Missing required files" });
+        // }
+
+        const thumb = req.files["thumb"] ? req.files["thumb"][0] : null;
+        const multipleFiles = req.files["files"] || [];
+
+        // Process the singleFile and multipleFiles as needed
+        const singleFilePath = thumb ? "uploads/" + thumb.filename : null;
+        const multipleFilePaths = multipleFiles.map(
+          (file) => "uploads/" + file.filename
+        );
+
+        const newProduct = {
+          l_subject,
+          desc,
+          uploader_name,
+          uploader_email,
+          price,
+          sub_sub_category,
+          sub_category,
+          category,
+          doc_name,
+          status,
+          files: multipleFilePaths,
+          thumb: singleFilePath,
+        };
+
+        const newBlog = await filesCollection.insertOne(newProduct);
+        res.send(newBlog);
       }
-
-
-      const thumb = req.files['thumb'] ? req.files['thumb'][0] : null;
-      const multipleFiles = req.files['files'] || [];
-
-      // Process the singleFile and multipleFiles as needed
-      const singleFilePath = thumb ? 'uploads/' + thumb.filename : null;
-      const multipleFilePaths = multipleFiles.map(file => 'uploads/' + file.filename);
-
-
-      const newProduct = {
-        l_subject,
-        desc,
-        uploader_name,
-        price,
-        sub_sub_category,
-        sub_category,
-        category,
-        doc_name,
-        files:multipleFilePaths,
-        thumb:singleFilePath
-      };
-
-      const newBlog = await filesCollection.insertOne(newProduct);
-      res.send(newBlog);
-    });
+    );
 
     await client.db("admin").command({ ping: 1 });
     console.log("successfully connected to MongoDB!");
