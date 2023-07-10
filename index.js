@@ -98,7 +98,14 @@ async function run() {
       const query = { uploader_email: email }
 
       const blogs = await filesCollection.find(query).toArray();
-      res.send(blogs); 
+      res.send(blogs);
+      // console.log(blogs);
+    });
+    app.get("/files/single/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await filesCollection.findOne(query);
+      res.send(result);
       // console.log(blogs);
     });
 
