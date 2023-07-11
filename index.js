@@ -81,7 +81,7 @@ async function run() {
     app.delete("/member/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
-      const result = await memberCollection.deleteOne(query); 
+      const result = await memberCollection.deleteOne(query);
       res.send(result);
     });
 
@@ -180,6 +180,32 @@ async function run() {
       res.send(newBlog);
       // console.log(newBlog);
     });
+
+    app.put("/files/:id", async (req, res) => {
+      const body = req.body;
+      // console.log("body", body);
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      // const getMem = await memberCollection.findOne(query);
+      // console.log("getmem", getMem);
+
+      // if (!Array.isArray(getMem.reviews)) {
+      //   getMem.reviews = []; // Initialize reviews as an empty array if it's not already an array
+      // }
+      const updatedData = {
+        $set: body,
+      };
+
+
+      const result = await filesCollection.updateOne(
+        query,
+        updatedData,
+        options
+      );
+      res.send(result);
+      // console.log(newBlog);
+    }); 
 
     app.delete("/files/:id", async (req, res) => {
       const id = req.params.id;
